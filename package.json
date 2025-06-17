@@ -1,10 +1,10 @@
 {
   "name": "i75-scraper",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "scripts": {
     "build": "echo \"[skip build] nothing to compile\"",
-    "lint":  "echo \"[skip lint] no rules yet\"",
-    "test":  "echo \"[skip tests] none written\""
+    "lint": "echo \"[skip lint] no rules yet\"",
+    "test": "echo \"[skip tests] none written\""
   },
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",
