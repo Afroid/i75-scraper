@@ -4,5 +4,9 @@
 # production
 /build
 
+# Infra
+infra/cdk.out/
+infra/node_modules/
+
 # Developer notes (ignored by Git and compiler)
 *.ignore
