@@ -3,3 +3,6 @@
 
 # production
 /build
+
+infra/cdk.out/
+infra/node_modules/
