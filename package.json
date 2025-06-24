@@ -2,9 +2,11 @@
   "name": "i75-scraper",
   "version": "0.0.0",
   "scripts": {
-    "build": "echo \"[skip build] nothing to compile\"",
-    "lint":  "echo \"[skip lint] no rules yet\"",
-    "test":  "echo \"[skip tests] none written\""
+    "build": "tsc --project tsconfig.json",
+    "infra:deploy": "cd infra && npx cdk deploy --require-approval never --profile i75-admin",
+    "deploy": "npm run build && npm run infra:deploy",
+    "lint": "echo \"[skip lint] no rules yet\"",
+    "test": "jest --passWithNoTests"
   },
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",
@@ -13,6 +15,14 @@
     "@semantic-release/github": "^11.0.3",
     "@semantic-release/npm": "^12.0.1",
     "@semantic-release/release-notes-generator": "^14.0.3",
-    "semantic-release": "^24.2.5"
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.0.3",
+    "aws-sdk-client-mock": "^4.1.0",
+    "jest": "^30.0.2",
+    "semantic-release": "^24.2.5",
+    "ts-jest": "^29.4.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.835.0"
   }
 }

@@ -3,3 +3,6 @@
 
 # production
 /build
+
+# Developer notes (ignored by Git and compiler)
+*.ignore
