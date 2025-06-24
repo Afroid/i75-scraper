@@ -1,6 +1,6 @@
 {
   "name": "i75-scraper",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "scripts": {
     "build": "tsc --project tsconfig.json",
     "infra:deploy": "cd infra && npx cdk deploy --require-approval never --profile i75-admin",
