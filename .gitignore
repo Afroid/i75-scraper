@@ -1,12 +1,34 @@
-# dependencies
-/node_modules
+# ────────────────
+# Dependencies
+# ────────────────
+**/node_modules/
 
-# production
-/build
+# ────────────────
+# Build artifacts
+# ────────────────
+# client TS → JS
+dist/
+build/
 
-# Infra
+# infra CDK staging
 infra/cdk.out/
-infra/node_modules/
+infra/.cdk.staging/
 
-# Developer notes (ignored by Git and compiler)
+# infra compiled stack code & type declarations
+infra/**/*.js
+infra/**/*.d.ts
+# keep your infra test config in the repo
+!infra/jest.config.js
+
+# ────────────────
+# Testing
+# ────────────────
+**/coverage/
+# local Lambda test payload
+output.json
+
+# ────────────────
+# Misc / Notes
+# ────────────────
+# “dev-notes.ignore” files, etc.
 *.ignore

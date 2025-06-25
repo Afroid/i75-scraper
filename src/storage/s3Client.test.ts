@@ -1,23 +1,45 @@
 import { mockClient } from 'aws-sdk-client-mock';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { storeLatest } from './s3Client';
+import { storeLatest, s3Client } from './s3Client';
 
 const s3Mock = mockClient(S3Client);
 
-beforeEach(() => {
-  s3Mock.reset();
-});
 
-test('storeLatest calls S3 PutObject with correct params', async () => {
-  s3Mock.on(PutObjectCommand).resolves({});  // simulate success
+describe('env-guard in s3Client', () => {
+  const ORIGINAL_BUCKET = process.env.SCORES_BUCKET;
 
-  await storeLatest('i75', { 'Team A': 42 });
+  beforeEach(() => {
+    s3Mock.reset();
+    jest.resetModules();
+  });
 
-  expect(s3Mock.calls()).toHaveLength(1);
-  expect(s3Mock.calls()[0].args[0].input).toMatchObject({
-    Bucket: process.env.SCORES_BUCKET,
-    Key: 'leagues/i75/latest.json',
-    ContentType: 'application/json',
-    Body: JSON.stringify({ 'Team A': 42 }),
+  afterAll(() => {
+    // close any open sockets so Jest can exit cleanly
+    s3Client.destroy();
+    process.env.SCORES_BUCKET = ORIGINAL_BUCKET;
+    jest.resetAllMocks();
+  });
+
+  it('storeLatest calls S3 PutObject with correct params', async () => {
+    // Simulate success by resolving it
+    s3Mock.on(PutObjectCommand).resolves({});
+
+    await storeLatest('i75', { 'Team A': 42 });
+
+    expect(s3Mock.calls()).toHaveLength(1);
+    expect(s3Mock.calls()[0].args[0].input).toMatchObject({
+      Bucket: process.env.SCORES_BUCKET,
+      Key: 'leagues/i75/latest.json',
+      ContentType: 'application/json',
+      Body: JSON.stringify({ 'Team A': 42 }),
+    });
+  });
+
+  it('throws when SCORES_BUCKET is not defined', async () => {
+    delete process.env.SCORES_BUCKET;
+
+    await expect(import("./s3Client"))
+      .rejects
+      .toThrow("SCORES_BUCKET env var is required");
   });
 });

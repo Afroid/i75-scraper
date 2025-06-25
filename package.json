@@ -5,10 +5,14 @@
     "build": "tsc --project tsconfig.json",
     "infra:deploy": "cd infra && npx cdk deploy --require-approval never --profile i75-admin",
     "deploy": "npm run build && npm run infra:deploy",
-    "lint": "echo \"[skip lint] no rules yet\"",
-    "test": "jest --passWithNoTests"
+    "lint": "eslint . --ext .ts",
+    "test": "jest --silent --runInBand --detectOpenHandles",
+    "test:coverage": "jest --coverage --silent",
+    "test:debug": "jest",
+    "prepare": "husky install"
   },
   "devDependencies": {
+    "@eslint/js": "^9.29.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/commit-analyzer": "^13.0.1",
     "@semantic-release/git": "^10.0.1",
@@ -17,12 +21,20 @@
     "@semantic-release/release-notes-generator": "^14.0.3",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.3",
+    "@typescript-eslint/eslint-plugin": "^8.35.0",
+    "@typescript-eslint/parser": "^8.35.0",
     "aws-sdk-client-mock": "^4.1.0",
+    "eslint": "^9.29.0",
+    "globals": "^16.2.0",
+    "husky": "^8.0.0",
     "jest": "^30.0.2",
+    "lint-staged": "^15.5.2",
     "semantic-release": "^24.2.5",
-    "ts-jest": "^29.4.0"
+    "ts-jest": "^29.4.0",
+    "typescript-eslint": "^8.35.0"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.835.0"
+    "@aws-sdk/client-s3": "^3.835.0",
+    "aws-embedded-metrics": "^4.2.0"
   }
 }
