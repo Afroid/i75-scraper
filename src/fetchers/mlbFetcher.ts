@@ -22,12 +22,16 @@ const logger = createMetricsLogger();
 
 // Fetches today's MLB game scores from the MLB Stats API
 export async function fetchMLBScores(): Promise<MLBScores> {
-  // Use today's date in YYYY-MM-DD format
-  const today = new Date().toISOString().split('T')[0];
-  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}`;
+  const date = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York'
+  }).format(new Date());
+
+  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${date}`;
+  console.debug("Fetching MLB schedule for date and from:", date, url);
 
   logger.putMetric('FetchStart', 1, Unit.Count);
-  console.debug(`Fetching MLB schedule from ${url}`);
+
+
   let data: MLBScheduleResponse;
 
   try {
@@ -37,6 +41,7 @@ export async function fetchMLBScores(): Promise<MLBScores> {
       throw new Error(`Fetch failed with status ${res.status}: ${res.statusText}`);
     }
     data = (await res.json()) as MLBScheduleResponse;
+    console.debug('data:', JSON.stringify(data));
   } catch (err) {
     logger.putMetric('FetchErrors', 1, Unit.Count);
     console.error('Error fetching schedule', err);
