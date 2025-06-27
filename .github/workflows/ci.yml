@@ -27,6 +27,12 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Infra Install & Test
+        working-directory: ./infra
+        run: |
+          npm ci
+          npm test
+
       - name: Run tests
         run: npm test -- --coverage
 
@@ -36,3 +42,15 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/lcov.info
+
+  deploy:
+     needs: build-and-test
+     runs-on: ubuntu-latest
+     steps:
+       - uses: actions/checkout@v3
+       - name: Setup Node.js
+         uses: actions/setup-node@v3
+         with:
+          node-version: 20.x
+       - run: npm ci
+       - run: npm run deploy       # builds & runs infra:deploy
