@@ -53,5 +53,8 @@ jobs:
          uses: actions/setup-node@v3
          with:
           node-version: 20.x
-       - run: npm ci
-       - run: npm run deploy       # builds & runs infra:deploy
+
+       - name: Install & Deploy
+         run: |
+           npm ci
+           npm run deploy
