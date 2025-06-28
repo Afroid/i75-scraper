@@ -18,8 +18,8 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "🔨 Running infra unit tests…"
-(cd infra && npm test -- --bail --silent)
+(cd infra && npm ci && npm run build && npm test -- --bail --silent)
 if [ $? -ne 0 ]; then
-  echo "❌ Infra tests failed. Please fix them before committing."
+  echo "❌ Infra unit tests failed. Please fix them before committing."
   exit 1
 fi
