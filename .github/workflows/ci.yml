@@ -61,7 +61,18 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region:            ${{ secrets.AWS_REGION }}
 
-      - name: Root - Install and Build from root -> Infra - Install, Build and Deploy
+      - name: Install & Build
         run: |
           npm ci
-          npm run deploy
+          npm run build
+
+      - name: Infra - install, build & bootstrap
+        working-directory: ./infra
+        run: |
+          npm ci
+          npm run build
+          npx cdk bootstrap --require-approval never
+
+      - name: Infra - deploy
+        working-directory: ./infra
+        run: npx cdk deploy --require-approval never
