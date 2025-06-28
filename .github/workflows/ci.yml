@@ -31,9 +31,10 @@ jobs:
         working-directory: ./infra
         run: |
           npm ci
-          npm test
+          npm run build
+          npm test -- --coverage
 
-      - name: Run tests
+      - name: Run tests from root
         run: npm test -- --coverage
 
       # For future coverage reports:

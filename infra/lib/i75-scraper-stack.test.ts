@@ -8,16 +8,24 @@ test("Stack defines S3 bucket, Lambda, and EventBridge rule", () => {
   const template = Template.fromStack(stack);
 
   // S3 bucket
-  template.hasResourceProperties("AWS::S3::Bucket", { });
+  template.hasResourceProperties("AWS::S3::Bucket", {});
 
   // Lambda function
   template.hasResourceProperties("AWS::Lambda::Function", {
-    Handler: "handler.handler",
-    Runtime: "nodejs20.x"
+    Runtime: "nodejs20.x",
+    Environment: {
+      Variables: {
+        SCORES_BUCKET: {}
+      }
+    }
   });
+
+  // Exactly one EventBridge rule in the stack
+  template.resourceCountIs("AWS::Events::Rule", 1);
 
   // EventBridge rule
   template.hasResourceProperties("AWS::Events::Rule", {
-    ScheduleExpression: "rate(5 minutes)"
+    ScheduleExpression: "cron(0/5 17-23,0-4 ? 3-11 MON-SUN *)"
   });
+
 });
