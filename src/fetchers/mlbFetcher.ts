@@ -1,82 +1,111 @@
 import { createMetricsLogger, Unit } from "aws-embedded-metrics";
+import { fetchSchedule, fetchStandings, fetchLineScore } from './mlbApi';
+
+/** Detailed box score and record for one team */
+export interface ScoreDetail {
+  runs:     number;
+  hits:     number;
+  errors:   number;
+  record?:  string; // Season W-L record, e.g. "45-32"
+  status:   "Preview" | "Live" | "Final";
+};
+
+/** The output shape: map from team name → ScoreDetail */
+export type MLBScores = Record<string, ScoreDetail>;
 
 /**
- * MLBScores is a map from team name (string) to their score (number).
- * e.g. { "Braves": 5, "Mets": 3 }
- */
-export interface MLBScores {
-  [teamName: string]: number;
-}
-
-/**
- * Represents one MLB game with status and team scores.
+ * Represents one MLB game with game primary key (gamePk), status and team scores.
  */
 export interface MLBGame {
+  gamePk: number;
   status: {
     abstractGameState: "Preview" | "Live" | "Final";
     detailedState: string;
   };
   teams: {
-    away: { team: { name: string }; score: number | null };
-    home: { team: { name: string }; score: number | null };
+    away: {
+      team:   { name: string };
+      score:  number | null;
+    };
+    home: {
+      team:   { name: string };
+      score:  number | null;
+    };
   };
-}
-
-interface MLBScheduleResponse {
-  dates?: Array<{ games?: MLBGame[] }>;
-}
+};
 
 const logger = createMetricsLogger();
 
 /**
- * Helper to fetch the raw schedule response from the MLB API.
- */
-async function fetchSchedule(): Promise<MLBScheduleResponse> {
-  const date = new Intl.DateTimeFormat(
-    "en-CA",
-    { timeZone: "America/New_York" }
-  ).format(new Date());
-
-  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${date}`;
-
-  console.debug("Fetching MLB schedule for date and from:", date, url);
-  logger.putMetric("FetchStart", 1, Unit.Count);
-
-  try {
-    const res = await fetch(url);
-    logger.putMetric("FetchHTTPStatusCode", res.status, Unit.None);
-    if (!res.ok) throw new Error(`Fetch failed ${res.status}: ${res.statusText}`);
-    const json = (await res.json()) as MLBScheduleResponse;
-    console.debug("Raw schedule data:", JSON.stringify(json));
-    return json;
-  } catch (err) {
-    logger.putMetric("FetchErrors", 1, Unit.Count);
-    console.error("Error fetching schedule", err);
-    await logger.flush();
-    return {};
-  }
-}
-
-/**
  * Returns a mapping of team names to their scores for all completed or in-progress games.
  */
-export async function fetchMLBScores(): Promise<MLBScores> {
-  const data = await fetchSchedule();
+export async function fetchMLBScores(date?: string): Promise<MLBScores> {
+  const schedule = await fetchSchedule(date);
+  const standings = await fetchStandings();
+
+  // Flattens all games into a single array
+  const games = schedule.dates?.flatMap(d => d.games ?? []) ?? [];
+
+  // This is the accumulator for the results
   const scores: MLBScores = {};
 
-  for (const dateEntry of data.dates || []) {
-    for (const game of dateEntry.games || []) {
-      const { away, home } = game.teams;
-      if (away.score != null && home.score != null) {
-        scores[away.team.name] = away.score;
-        scores[home.team.name] = home.score;
+  for (const game of games) {
+    // const { abstractGameState } = game.status;
+    const awayName  = game.teams.away.team.name;
+    const homeName  = game.teams.home.team.name;
+    const gameState = game.status.abstractGameState;
+
+    try {
+      console.debug(`fetchMLBScores: gamePk: ${game.gamePk}`);
+      // In  case this 404s, it'll be caught here and fall back to schedule scores
+      const lines = await fetchLineScore(game.gamePk);
+
+      scores[awayName] = {
+        runs:   lines.teams.away.runs,
+        hits:   lines.teams.away.hits,
+        errors: lines.teams.away.errors,
+        status: gameState,
+        record: standings[awayName] || '0-0',
+      };
+      scores[homeName] = {
+        runs:   lines.teams.home.runs,
+        hits:   lines.teams.home.hits,
+        errors: lines.teams.home.errors,
+        status: gameState,
+        record: standings[homeName] || "0-0",
+      };
+
+
+      // Metrics & Logging
+      const gameCount = Object.keys(scores).length / 2
+      logger.putMetric("GamesParsed", gameCount, Unit.Count);
+      console.debug("Parsed scores:", scores);
+      await logger.flush();
+
+    } catch (err) {
+      console.error('fetchMLBScores error:', err);
+
+      // Only fall back if schedule actually has scores
+      const awayScore = game.teams.away.score;
+      const homeScore = game.teams.home.score;
+      if (awayScore != null && homeScore != null) {
+        scores[awayName] = {
+          runs:   awayScore,
+          hits:   0,
+          errors: 0,
+          status: gameState,
+          record: standings[awayName] || '',
+        };
+        scores[homeName] = {
+          runs:   homeScore,
+          hits:   0,
+          errors: 0,
+          status: gameState,
+          record: standings[homeName] || '',
+        };
       }
     }
   }
-
-  logger.putMetric("GamesParsed", Object.keys(scores).length / 2, Unit.Count);
-  console.debug("Parsed scores:", scores);
-  await logger.flush();
   return scores;
 }
 
