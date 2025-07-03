@@ -14,10 +14,10 @@ export const s3Client = new S3Client({
  * Stores the latest scoreboard JSON at leagues/{leagueId}/latest.json
  * Updates this file on every run for fast, up-to-date reads.
  */
-export async function storeLatest(
+export async function storeLatest<T extends Record<string, unknown>>(
   leagueId: string,
-  data: Record<string, number>
-) {
+  data: T
+): Promise<void> {
   await s3Client.send(
     new PutObjectCommand({
       Bucket: BUCKET,
@@ -32,11 +32,11 @@ export async function storeLatest(
  * Stores a historical snapshot JSON at leagues/{leagueId}/{day}.json
  * Keeps a day-to-day archive of scores.
  */
-export async function storeSnapshot(
+export async function storeSnapshot<T extends Record<string, unknown>>(
   leagueId: string,
   day: string,
-  data: unknown
-) {
+  data: T
+): Promise<void> {
   await s3Client.send(
     new PutObjectCommand({
       Bucket: BUCKET,

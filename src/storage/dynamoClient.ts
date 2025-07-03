@@ -1,24 +1,33 @@
-import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import {
+  DynamoDBDocumentClient,
+  PutCommand
+} from "@aws-sdk/lib-dynamodb";
 
-const TABLE_NAME = process.env.WEEKLY_TABLE!;
-const client    = new DynamoDBClient({
-  logger: console, // Sends SDK logs to console.
-  region: process.env.AWS_REGION
+const raw = new DynamoDBClient({
+  region: process.env.AWS_REGION,
+  logger: console
 });
+
+// Create a “document” client that auto-converts JS values ↔ Dynamo types
+const ddb = DynamoDBDocumentClient.from(raw);
+
+const TABLE = process.env.DAILY_TABLE!;
 
 export async function putDailySnapshot(
   leagueId: string,
-  day: string,
-  data: unknown
+  snapshotDate: string,    // must match your table’s sortKey name
+  payload: unknown
 ) {
-  const item = {
-    leagueId:    { S: leagueId },
-    snapshotDay: { S: day },
-    payload:     { S: JSON.stringify(data) },
-    timestamp:   { N: Date.now().toString() }
-  };
-
-  await client.send(
-    new PutItemCommand({ TableName: TABLE_NAME, Item: item })
+  await ddb.send(
+    new PutCommand({
+      TableName: TABLE,
+      Item: {
+        leagueId,              // partitionKey
+        snapshotDate,          // sortKey
+        payload,               // scores object, stored as native Map/List
+        timestamp: Date.now()  // optional if you still want it
+      },
+    })
   );
 }

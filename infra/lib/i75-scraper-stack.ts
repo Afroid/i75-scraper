@@ -6,6 +6,7 @@ import { Runtime } from "aws-cdk-lib/aws-lambda";
 import { Rule, Schedule } from "aws-cdk-lib/aws-events";
 import { LambdaFunction } from "aws-cdk-lib/aws-events-targets";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
+import { Table, AttributeType, BillingMode } from "aws-cdk-lib/aws-dynamodb";
 
 export class I75ScraperStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -17,39 +18,78 @@ export class I75ScraperStack extends cdk.Stack {
       autoDeleteObjects: true,
     });
 
-    // Creates the Lambda function
-    const fn = new NodejsFunction(this, "ScraperFn", {
+    // Creates the DynamoDB Table
+    const dailyTable = new Table(this, "DailySnapshots", {
+      tableName: "DailySnapshots",
+      partitionKey: { name: "leagueId",     type: AttributeType.STRING },
+      sortKey:      { name: "snapshotDate", type: AttributeType.STRING },
+      billingMode:  BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,    // dev only
+    });
+
+    const commonBundling = {
+      externalModules: ["aws-sdk"], // Keeps the built-in SDK external
+      minify: true,
+      sourceMap: true,
+    };
+
+    const liveUpdateFn = new NodejsFunction(this, "LiveUpdateFn", {
       runtime: Runtime.NODEJS_20_X,
-      entry: path.join(__dirname, "../../src/handler.ts"),
+      entry: path.join(__dirname, "../../src/handler.live.ts"),
       handler: "handler",
-      bundling: {
-        // Keeps the Lambda runtime’s AWS SDK external, but also minify & source-map
-        externalModules: ["aws-sdk"],
-        minify: true,
-        sourceMap: true,
-      },
+      bundling: commonBundling,
       environment: {
         SCORES_BUCKET: bucket.bucketName,
+        LEAGUE_ID: "mlb"
       },
     });
 
     // Grant write permissions
-    bucket.grantPut(fn);
+    bucket.grantPut(liveUpdateFn);
+
 
     /**
-     * EventBridge rule that runs between 17–23 UTC (1 PM–7 PM ET) + 00–04 UTC (8 PM–midnight ET)
+     * EventBridge rule that runs between 16–23 UTC (12PM – 7PM ET) + 00–08 UTC (8PM – 4AM ET)
+     * EventBridge rule that runs between 16-8 UTC (12 PM – 4 AM ET)
      * and every five minutes during those times.
      */
-    new Rule(this, "GamePollingRule", {
+    new Rule(this, "LiveUpdateRule", {
       description: "Invoke scraper every 5 min during probable MLB game hours",
       schedule: Schedule.cron({
         minute: "0/5",
-        hour:   "17-23,0-4",
+        hour:   "16-23,0-8",
         month:  "3-11",
         weekDay:"MON-SUN",
         year:   "*"
       }),
-      targets: [ new LambdaFunction(fn) ],
+      targets: [ new LambdaFunction(liveUpdateFn) ],
+    });
+
+    const dailySnapshotFn = new NodejsFunction(this, "DailySnapshotFn", {
+      runtime: Runtime.NODEJS_20_X,
+      entry: path.join(__dirname, "../../src/handler.daily.ts"),
+      handler: "handler",
+      bundling: commonBundling,
+      environment: {
+        SCORES_BUCKET:  bucket.bucketName,
+        DAILY_TABLE:    dailyTable.tableName,
+        LEAGUE_ID:      "mlb"
+      },
+    });
+
+    // Grant write permissions for dailySnapshotFn
+    bucket.grantPut(dailySnapshotFn);
+    dailyTable.grantWriteData(dailySnapshotFn);
+
+    new Rule(this, "DailySnapshotRule", {
+      schedule: Schedule.cron({
+        minute: "5",
+        hour:   "8",      // 8:05 UTC → 04:05 EDT
+        day:    "*",
+        month:  "3-11",
+        year:   "*",
+      }),
+      targets: [new LambdaFunction(dailySnapshotFn)],
     });
   }
 }
